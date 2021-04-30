@@ -27,7 +27,12 @@ def initGame(graph, thres):
             strategy = 0 # mask
         else:
             strategy = 1 # no mask
+        if (np.random.uniform(0, 1) < 2/3):
+            metastrategy = 0 # immitate the best
+        else:
+            metastrategy = 1 # best response
         graph.nodes[node]['strategy'] = strategy
+        graph.nodes[node]['metastrategy'] = metastrategy
         graph.nodes[node]['payoff'] = 0
         graph.nodes[node]['infected'] = 0
         graph.nodes[node]['symptom'] = 0 # symptomatic agents don't play
@@ -93,11 +98,11 @@ def getPayoff(graph, node, C): #plays games with neighbors, updates payoff and r
                             graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] - 100
                             graph.nodes[node]['symptom'] = 1 
                             graph.nodes[node]['strategy'] = 0
-    if (maskPayoff > nonMaskPayoff):
-        return 0
-    return 1
+    if (maskPayoff < nonMaskPayoff):
+        return 1
+    return 0
         
-def simulate(niter, C, graph, thres, brFlag):
+def simulate(niter, C, graph, thres):
     initGame(graph, thres) 
     mask = list()
     totalInfected = list()
@@ -106,40 +111,41 @@ def simulate(niter, C, graph, thres, brFlag):
         maskCount = 0
         infectedCount = 0
         for node in graph.nodes():
-            if (graph.nodes[node]['strategy'] == 0):
-                maskCount = maskCount + 1
             if (graph.nodes[node]['infected'] > 0):
                 graph.nodes[node]['infected'] = graph.nodes[node]['infected'] - 1 
                 infectedCount = infectedCount + 1
+            else:
+                if (graph.nodes[node]['strategy'] == 0):
+                    maskCount = maskCount + 1
+                    
         mask.append(maskCount/len(graph.nodes()))
         totalInfected.append(infectedCount/len(graph.nodes()))
 
         for node in graph.nodes():
             if (graph.nodes[node]['symptom'] == 0): # only play if susceptible/asymptotic
                 br = getPayoff(graph, node, C)
-                if (brFlag == 1):
+                if (graph.nodes[node]['metastrategy'] == 1):
                     graph.nodes[node]['strategy'] = br
         
         #if (i % 7 == 0):
-        if (brFlag == 0):
-            for node in graph.nodes(): # can we make this update less frequent ?
-                if (graph.nodes[node]['symptom'] == 0):
-                    maxNode = node
-                    maxPayoff = graph.nodes[node]['payoff']
-                    maxStrategy = graph.nodes[node]['strategy']
-                    for v in list(graph.adj[node]):
-                        if (graph.nodes[v]['symptom'] == 0 and graph.nodes[v]['payoff'] > maxPayoff):
-                            maxPayoff = graph.nodes[v]['payoff']
-                            maxStrategy = graph.nodes[v]['strategy']
-                            maxNode = v
-                    if (maxPayoff > graph.nodes[node]['payoff']):
-                        #if (np.random.uniform(0, 1) < (graph.nodes[maxNode]['payoff'] - graph.nodes[node]['payoff'])/(max(len(list(graph.adj[node])), len(list(graph.adj[maxNode])))*(1+C))):
-                        graph.nodes[node]['strategy'] = maxStrategy
-                           
+        for node in graph.nodes(): 
+            if (graph.nodes[node]['symptom'] == 0 and graph.nodes[node]['metastrategy'] == 0):
+                maxNode = node
+                maxPayoff = graph.nodes[node]['payoff']
+                maxStrategy = graph.nodes[node]['strategy']
+                for v in list(graph.adj[node]):
+                    if (graph.nodes[v]['symptom'] == 0 and graph.nodes[v]['payoff'] > maxPayoff):
+                        maxPayoff = graph.nodes[v]['payoff']
+                        maxStrategy = graph.nodes[v]['strategy']
+                        maxNode = v
+                if (maxPayoff > graph.nodes[node]['payoff']):
+                    #if (np.random.uniform(0, 1) < (graph.nodes[maxNode]['payoff'] - graph.nodes[node]['payoff'])/(max(len(list(graph.adj[node])), len(list(graph.adj[maxNode])))*(1+C))):
+                    graph.nodes[node]['strategy'] = maxStrategy
+                       
                # for node in graph.nodes():
                  #   graph.nodes[node]['payoff'] = 0
                      
-            
+        # stochastic term
         graph.nodes[np.random.randint(len(graph.nodes()))]['strategy'] = abs(graph.nodes[np.random.randint(len(graph.nodes()))]['strategy'] - 1)
         randInfected = np.random.randint(len(graph.nodes()))
         graph.nodes[randInfected]['infected'] = 14
@@ -168,25 +174,27 @@ def simulate(niter, C, graph, thres, brFlag):
 nx.draw(G_gr, node_size = 50, node_color=[colors[G.nodes[node]['strategy']] for node in G.nodes])
 
 
-maskSW = simulate(1000, 0.5, G_4, 0.5, 1)
+maskSW = simulate(1000, 0.5, G_4, 0.5)
 # maskSF = simulate(1000, 0.5, G_sf, 0.5, 0)
-maskGR = simulate(1000, 0.5, G_gr_4, 0.5, 1)
-maskR = simulate(1000, 0.5, G_r_4, 0.5, 1)
+maskGR = simulate(1000, 0.5, G_gr_4, 0.5)
+maskR = simulate(1000, 0.5, G_r_4, 0.5)
 
 plt.figure(figsize = (8, 8))
 plt.title("People wearing masks (%)")
+
+plt.plot(range(1000), [100*i for i in maskGR[0]], color="coral", label="Grid")
 plt.plot(range(1000), [100*i for i in maskSW[0]], color="green", label="Small World")
 # plt.plot(range(1000), [100*i for i in maskSF[0]], color="skyblue", label="Scale Free")
-plt.plot(range(1000), [100*i for i in maskGR[0]], color="coral", label="Grid")
 plt.plot(range(1000), [100*i for i in maskR[0]], color="pink", label="Random")
 plt.legend()
 plt.ylim(0,100)
 
 plt.figure(figsize = (8, 8))
-plt.title("Infected (%)")
+plt.title("Infected (%)") 
+
+plt.plot(range(1000), [100*i for i in maskGR[1]], color="coral", label="Grid")
 plt.plot(range(1000), [100*i for i in maskSW[1]], color="green", label="Small World")
 # plt.plot(range(1000), [100*i for i in maskSF[1]], color="skyblue", label="Scale Free")
-plt.plot(range(1000), [100*i for i in maskGR[1]], color="coral", label="Grid")
 plt.plot(range(1000), [100*i for i in maskR[1]], color="pink", label="Random")
 plt.legend()
 plt.ylim(0,100)
