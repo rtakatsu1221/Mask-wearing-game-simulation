@@ -10,10 +10,11 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
   
-G = nx.watts_strogatz_graph(n = 10000, k = 4, p = 0.5)
+
 G_sf = nx.to_undirected(nx.scale_free_graph(n = 10000))
-G_gr = nx.watts_strogatz_graph(n = 10000, k = 4, p = 0)
-G_r = nx.watts_strogatz_graph(n = 10000, k = 4, p = 1)
+G_4 = nx.watts_strogatz_graph(n = 10000, k = 4, p = 0.5)
+G_gr_4 = nx.watts_strogatz_graph(n = 10000, k = 4, p = 0)
+G_r_4 = nx.watts_strogatz_graph(n = 10000, k = 4, p = 1)
 
 colors = ['blue', 'red']
 
@@ -37,57 +38,66 @@ def initGame(graph, thres):
                 graph.nodes[node]['payoff'] = -100 
                 graph.nodes[node]['strategy'] = 0
 
-def getPayoff(graph, node, C, cumulative):
-    if (cumulative == 0):
-        graph.nodes[node]['payoff'] = 0
-    for v in list(graph.adj[node]):
-        if (graph.nodes[node]['strategy'] == 0):
-            if (graph.nodes[v]['strategy'] == 0):
-                graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] + 1
-                if (graph.nodes[node]['infected'] == 0 and 
-                    graph.nodes[v]['infected'] > 0 and
-                    graph.nodes[v]['symptom'] == 0 and
-                    np.random.uniform(0, 1) < 0.05): # change the param here
-                    graph.nodes[node]['infected'] = 14
-                    if (np.random.uniform(0, 1) < (1/6)):
-                        graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] - 100
-                        graph.nodes[node]['symptom'] = 1 
-                        graph.nodes[node]['strategy'] = 0
-            else:
-                graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] - C
-                if (graph.nodes[node]['infected'] == 0 and 
-                    graph.nodes[v]['infected'] > 0 and
-                    graph.nodes[v]['symptom'] == 0 and
-                    np.random.uniform(0, 1) < 0.25): # change the param here
-                    graph.nodes[node]['infected'] = 14
-                    if (np.random.uniform(0, 1) < (1/6)):
-                        graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] - 100
-                        graph.nodes[node]['symptom'] = 1 
-                        graph.nodes[node]['strategy'] = 0
-        else:
-            if (graph.nodes[v]['strategy'] == 0):
-                graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] + 1 + C
-                if (graph.nodes[node]['infected'] == 0 and 
-                    graph.nodes[v]['infected'] > 0 and
-                    graph.nodes[v]['symptom'] == 0 and
-                    np.random.uniform(0, 1) < 0.10): # change the param here
-                    graph.nodes[node]['infected'] = 14
-                    if (np.random.uniform(0, 1) < (1/6)):
-                        graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] - 100
-                        graph.nodes[node]['symptom'] = 1 
-                        graph.nodes[node]['strategy'] = 0
-            else:
-                if (graph.nodes[node]['infected'] == 0 and 
-                    graph.nodes[v]['infected'] > 0 and
-                    graph.nodes[v]['symptom'] == 0 and
-                    np.random.uniform(0, 1) < 0.5): # change the param here
-                    graph.nodes[node]['infected'] = 14
-                    if (np.random.uniform(0, 1) < (1/6)):
-                        graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] - 100
-                        graph.nodes[node]['symptom'] = 1 
-                        graph.nodes[node]['strategy'] = 0
+def getPayoff(graph, node, C): #plays games with neighbors, updates payoff and returns best responce
+# =============================================================================
+#     if (cumulative == 0):
+#         graph.nodes[node]['payoff'] = 0
+# =============================================================================
+    maskPayoff = 0
+    nonMaskPayoff = 0
     
-def simulate(niter, C, graph, thres, cumulative):
+    for v in list(graph.adj[node]):
+        if (graph.nodes[v]['symptom'] == 0):
+            if (graph.nodes[v]['strategy'] == 0):
+                maskPayoff = maskPayoff + 1
+                nonMaskPayoff = nonMaskPayoff + 1 + C
+                if (graph.nodes[node]['strategy'] == 0):
+                    graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] + 1
+                    if (graph.nodes[node]['infected'] == 0 and 
+                        graph.nodes[v]['infected'] > 0 and
+                        np.random.uniform(0, 1) < 0.05): # change the param here
+                        graph.nodes[node]['infected'] = 14
+                        if (np.random.uniform(0, 1) < (1/6)):
+                            graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] - 100
+                            graph.nodes[node]['symptom'] = 1 
+                            graph.nodes[node]['strategy'] = 0
+                else:
+                    graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] + 1 + C
+                    if (graph.nodes[node]['infected'] == 0 and 
+                        graph.nodes[v]['infected'] > 0 and
+                        np.random.uniform(0, 1) < 0.1): # change the param here
+                        graph.nodes[node]['infected'] = 14
+                        if (np.random.uniform(0, 1) < (1/6)):
+                            graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] - 100
+                            graph.nodes[node]['symptom'] = 1 
+                            graph.nodes[node]['strategy'] = 0
+            else:
+                maskPayoff = maskPayoff - C
+                if (graph.nodes[node]['strategy'] == 0):
+                    graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] - C
+                    if (graph.nodes[node]['infected'] == 0 and 
+                        graph.nodes[v]['infected'] > 0 and
+                        np.random.uniform(0, 1) < 0.25): # change the param here
+                        graph.nodes[node]['infected'] = 14
+                        if (np.random.uniform(0, 1) < (1/6)):
+                            graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] - 100
+                            graph.nodes[node]['symptom'] = 1 
+                            graph.nodes[node]['strategy'] = 0
+                else:
+                    if (graph.nodes[node]['infected'] == 0 and 
+                        graph.nodes[v]['infected'] > 0 and
+                        graph.nodes[v]['symptom'] == 0 and
+                        np.random.uniform(0, 1) < 0.5): # change the param here
+                        graph.nodes[node]['infected'] = 14
+                        if (np.random.uniform(0, 1) < (1/6)):
+                            graph.nodes[node]['payoff'] = graph.nodes[node]['payoff'] - 100
+                            graph.nodes[node]['symptom'] = 1 
+                            graph.nodes[node]['strategy'] = 0
+    if (maskPayoff > nonMaskPayoff):
+        return 0
+    return 1
+        
+def simulate(niter, C, graph, thres, brFlag):
     initGame(graph, thres) 
     mask = list()
     totalInfected = list()
@@ -105,10 +115,13 @@ def simulate(niter, C, graph, thres, cumulative):
         totalInfected.append(infectedCount/len(graph.nodes()))
 
         for node in graph.nodes():
-            if (graph.nodes[node]['symptom'] == 0):
-                getPayoff(graph, node, C, cumulative)
+            if (graph.nodes[node]['symptom'] == 0): # only play if susceptible/asymptotic
+                br = getPayoff(graph, node, C)
+                if (brFlag == 1):
+                    graph.nodes[node]['strategy'] = br
         
-        if (i % 7 == 0):
+        #if (i % 7 == 0):
+        if (brFlag == 0):
             for node in graph.nodes(): # can we make this update less frequent ?
                 if (graph.nodes[node]['symptom'] == 0):
                     maxNode = node
@@ -120,15 +133,20 @@ def simulate(niter, C, graph, thres, cumulative):
                             maxStrategy = graph.nodes[v]['strategy']
                             maxNode = v
                     if (maxPayoff > graph.nodes[node]['payoff']):
-                        if (np.random.uniform(0, 1) < (graph.nodes[maxNode]['payoff'] - graph.nodes[node]['payoff'])/(max(len(list(graph.adj[node])), len(list(graph.adj[maxNode])))*(1+C))):
-                            graph.nodes[node]['strategy'] = maxStrategy
-                       
-            for node in graph.nodes():
-                graph.nodes[node]['payoff'] = 0
-                       
+                        #if (np.random.uniform(0, 1) < (graph.nodes[maxNode]['payoff'] - graph.nodes[node]['payoff'])/(max(len(list(graph.adj[node])), len(list(graph.adj[maxNode])))*(1+C))):
+                        graph.nodes[node]['strategy'] = maxStrategy
+                           
+               # for node in graph.nodes():
+                 #   graph.nodes[node]['payoff'] = 0
+                     
             
         graph.nodes[np.random.randint(len(graph.nodes()))]['strategy'] = abs(graph.nodes[np.random.randint(len(graph.nodes()))]['strategy'] - 1)
-        graph.nodes[np.random.randint(len(graph.nodes()))]['infected'] = 14
+        randInfected = np.random.randint(len(graph.nodes()))
+        graph.nodes[randInfected]['infected'] = 14
+        if (np.random.uniform(0, 1) < (1/6)):
+            graph.nodes[randInfected]['payoff'] = graph.nodes[randInfected]['payoff'] - 100
+            graph.nodes[randInfected]['symptom'] = 1 
+            graph.nodes[randInfected]['strategy'] = 0
         
 # ==choosing single vertex to update===========================================
 #         u = np.random.randint(len(graph.nodes()))
@@ -150,26 +168,26 @@ def simulate(niter, C, graph, thres, cumulative):
 nx.draw(G_gr, node_size = 50, node_color=[colors[G.nodes[node]['strategy']] for node in G.nodes])
 
 
-maskSW = simulate(10000, 0.5, G, 0.5, 1)
-maskSF = simulate(10000, 0.5, G_sf, 0.5, 1)
-maskGR = simulate(10000, 0.5, G_gr, 0.5, 1)
-maskR = simulate(10000, 0.5, G_r, 0.5, 1)
+maskSW = simulate(1000, 0.5, G_4, 0.5, 1)
+# maskSF = simulate(1000, 0.5, G_sf, 0.5, 0)
+maskGR = simulate(1000, 0.5, G_gr_4, 0.5, 1)
+maskR = simulate(1000, 0.5, G_r_4, 0.5, 1)
 
 plt.figure(figsize = (8, 8))
 plt.title("People wearing masks (%)")
-plt.plot(range(10000), [100*i for i in maskSW[0]], color="green", label="Small World")
-plt.plot(range(10000), [100*i for i in maskSF[0]], color="skyblue", label="Scale Free")
-plt.plot(range(10000), [100*i for i in maskGR[0]], color="coral", label="Grid")
-plt.plot(range(10000), [100*i for i in maskR[0]], color="pink", label="Random")
+plt.plot(range(1000), [100*i for i in maskSW[0]], color="green", label="Small World")
+# plt.plot(range(1000), [100*i for i in maskSF[0]], color="skyblue", label="Scale Free")
+plt.plot(range(1000), [100*i for i in maskGR[0]], color="coral", label="Grid")
+plt.plot(range(1000), [100*i for i in maskR[0]], color="pink", label="Random")
 plt.legend()
 plt.ylim(0,100)
 
 plt.figure(figsize = (8, 8))
 plt.title("Infected (%)")
-plt.plot(range(10000), [100*i for i in maskSW[1]], color="green", label="Small World")
-plt.plot(range(10000), [100*i for i in maskSF[1]], color="skyblue", label="Scale Free")
-plt.plot(range(10000), [100*i for i in maskGR[1]], color="coral", label="Grid")
-plt.plot(range(10000), [100*i for i in maskR[1]], color="pink", label="Random")
+plt.plot(range(1000), [100*i for i in maskSW[1]], color="green", label="Small World")
+# plt.plot(range(1000), [100*i for i in maskSF[1]], color="skyblue", label="Scale Free")
+plt.plot(range(1000), [100*i for i in maskGR[1]], color="coral", label="Grid")
+plt.plot(range(1000), [100*i for i in maskR[1]], color="pink", label="Random")
 plt.legend()
 plt.ylim(0,100)
 
@@ -187,6 +205,11 @@ maskSW7daysdetsim = maskSW
 maskSF7daysdetsim = maskSF
 maskGR7daysdetsim = maskGR
 maskR7daysdetsim = maskR
+
+maskSW7dayssim = maskSW
+maskSF7dayssim = maskSF
+maskGR7dayssim = maskGR
+maskR7dayssim = maskR
 
 
 
